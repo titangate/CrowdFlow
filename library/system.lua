@@ -6,11 +6,12 @@ function validCoordinate(grid,x,y)
 end
 
 -- fill a rectangle area of a grid
-function writeToGrid(grid,x,y,w,h)
+function writeToGrid(grid,x,y,w,h,v)
+	v = v or 0
 	for i=x,x+w do
 		for j=y,y+h do
 			if validCoordinate(grid,i,j) then
-				grid:setTile(i,j,0)
+				grid:setTile(i,j,v)
 			end
 		end
 	end
@@ -23,12 +24,18 @@ end
 
 -- create an attraction source
 function setAttraction(grid,x,y,r,attract,fadefunction)
+	local mode
+	if attract > 0 then
+		mode = 1
+	else
+		mode = -1
+	end
 	fadefunction = fadefunction or fadeLinear
 	for i=x-r,x+r do
 		for j=y-r,y+r do
 			if validCoordinate(grid,i,j) then
-				delta = math.max(fadefunction(i-x,j-y,r)*attract,0)
-				grid:setTile(i,j,delta + grid:getTile(i,j))
+				delta = math.max(fadefunction(i-x,j-y,r)*mode*attract,0)
+				grid:setTile(i,j,math.floor(grid:getTile(i,j) + mode * delta))
 			end
 		end
 	end
@@ -64,25 +71,33 @@ end
 
 -- get the prefered direction to move in the next frame
 function getDirection(grid,x,y)
-	local move = false
 	local baseX,baseY = 0,0
 	local currentAttraction = grid:getTile(x,y)
 	for i,j,dx,dy,distance in getNeighbour(grid,x,y) do
 		local attraction = grid:getTile(i,j)
 		if attraction > currentAttraction then
-			move = true
 			baseX = baseX + (attraction - currentAttraction) / distance * dx
 			baseY = baseY + (attraction - currentAttraction) / distance * dy
 		end
 	end
-	if not move then 
+	if baseX == 0 and baseY == 0 then 
 		return false -- prefer to stay stationary
 	end
 	return math.atan2(baseY,baseX)
 end
 
+function updateAttraction(unit,x,y)
+	if x == unit.x and y == unit.y then
+		return
+	end
+
+end
+
+
 function setUnitLocInGrid(grid,unit,x,y)
 	local tx,ty = grid:getTileSize()
+	updateAttraction(unit,tx,ty)
+	unit.x,unit.y = tx,ty
 	unit.prop:setLoc(-screen.width/2 + x*tx + 0,-screen.height/2 + y*ty + 0)
 end
 
